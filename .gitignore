@@ -1,7 +1,5 @@
 build/
 work/
-*.app
-*.APP
 *.exe
 *.dll
 *.log
