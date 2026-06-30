@@ -1,0 +1,6 @@
+build/
+work/
+*.exe
+*.dll
+*.log
+*.tmp
