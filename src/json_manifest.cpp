@@ -9,6 +9,8 @@
 namespace dingoo {
 namespace {
 
+constexpr char kManifestFormat[] = "dingoo-package-tool-manifest-v1";
+
 std::string escapeJson(const std::string& value) {
     std::ostringstream out;
     for (unsigned char c : value) {
@@ -309,10 +311,11 @@ std::vector<ResourceEntry> readResourceArray(JsonReader& reader) {
 
 } // namespace
 
-std::string writeManifest(const AppImage& image, const std::string& originalImagePath, const std::string& rawPayloadPath) {
+std::string writeManifest(const PackageImage& image, const std::string& originalImagePath, const std::string& rawPayloadPath) {
     std::ostringstream out;
     out << "{\n";
-    out << "  \"format\": \"dingoo-app-tool-manifest-v1\",\n";
+    out << "  \"format\": \"" << kManifestFormat << "\",\n";
+    out << "  \"package_type\": \"" << packageFormatName(image.format) << "\",\n";
     out << "  \"original_image\": \"" << escapeJson(originalImagePath) << "\",\n";
     out << "  \"raw_payload\": \"" << escapeJson(rawPayloadPath) << "\",\n";
     out << "  \"file_size\": " << image.originalBytes.size() << ",\n";
@@ -360,9 +363,11 @@ Manifest readManifest(const std::string& text) {
         const auto k = reader.key();
         if (k == "format") {
             const auto format = reader.string();
-            if (format != "dingoo-app-tool-manifest-v1") {
+            if (format != kManifestFormat) {
                 throw std::runtime_error("unsupported manifest format: " + format);
             }
+        } else if (k == "package_type") {
+            manifest.image.format = parsePackageFormat(reader.string());
         } else if (k == "original_image") {
             manifest.originalImagePath = reader.string();
         } else if (k == "raw_payload") {

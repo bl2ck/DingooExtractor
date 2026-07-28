@@ -21,8 +21,8 @@ if ($LASTEXITCODE -ne 0) {
     throw "Build failed."
 }
 
-$CliExe = Join-Path $PSScriptRoot "build\dingoo-app-tool.exe"
-$GuiExe = Join-Path $PSScriptRoot "build\dingoo-app-tool-gui.exe"
+$CliExe = Join-Path $PSScriptRoot "build\dingoo-package-tool.exe"
+$GuiExe = Join-Path $PSScriptRoot "build\dingoo-package-tool-gui.exe"
 Write-Host "Built: $CliExe"
 if (Test-Path -LiteralPath $GuiExe) {
     Write-Host "Built: $GuiExe"

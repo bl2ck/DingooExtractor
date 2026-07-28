@@ -1,0 +1,9 @@
+#pragma once
+
+namespace dingoo {
+
+inline constexpr char kPackageToolVersion[] = "@PROJECT_VERSION@";
+inline constexpr char kPackageToolDisplayName[] = "Dingoo Package Tool @PROJECT_VERSION@";
+inline constexpr wchar_t kPackageToolWindowTitle[] = L"Dingoo Package Tool @PROJECT_VERSION@";
+
+} // namespace dingoo

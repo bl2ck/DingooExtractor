@@ -8,6 +8,12 @@
 
 namespace dingoo {
 
+enum class PackageFormat {
+    Unknown,
+    App,
+    Cc,
+};
+
 struct ChunkHeader {
     std::string ident;
     std::uint32_t type = 0;
@@ -48,7 +54,8 @@ struct ResourceEntry {
     std::string exportPath;
 };
 
-struct AppImage {
+struct PackageImage {
+    PackageFormat format = PackageFormat::Unknown;
     std::vector<std::uint8_t> originalBytes;
     ChunkHeader impt;
     ChunkHeader expt;
@@ -69,17 +76,22 @@ struct AppImage {
 // A total value of 0 means the current phase is indeterminate.
 using ProgressCallback = std::function<void(std::uint32_t current, std::uint32_t total, const std::string& message)>;
 
-AppImage parseAppImage(const std::vector<std::uint8_t>& data);
-void unpackApp(
-    const std::filesystem::path& appPath,
+PackageImage parsePackageImage(
+    const std::vector<std::uint8_t>& data,
+    PackageFormat format = PackageFormat::Unknown);
+void unpackPackage(
+    const std::filesystem::path& packagePath,
     const std::filesystem::path& outputDir,
     const ProgressCallback& progress = {});
-void packApp(
+void packPackage(
     const std::filesystem::path& manifestPath,
     const std::filesystem::path& outputPath,
     const ProgressCallback& progress = {});
-std::string describeApp(const AppImage& image);
+std::string describePackage(const PackageImage& image);
 
+std::string packageFormatName(PackageFormat format);
+PackageFormat parsePackageFormat(const std::string& value);
+PackageFormat packageFormatFromPath(const std::filesystem::path& path);
 std::string resourceKindName(ResourceKind kind);
 ResourceKind parseResourceKind(const std::string& value);
 

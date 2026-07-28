@@ -3,11 +3,13 @@
 #endif
 #define WIN32_LEAN_AND_MEAN
 
-#include "app_format.h"
+#include "package_format.h"
+#include "package_tool_version.h"
 
 #include <windows.h>
 #include <commctrl.h>
 #include <commdlg.h>
+#include <shellapi.h>
 #include <shlobj.h>
 
 #include <cstdint>
@@ -21,7 +23,16 @@
 
 namespace {
 
-constexpr wchar_t kWindowClassName[] = L"DingooAppToolGuiWindow";
+constexpr wchar_t kWindowClassName[] = L"DingooPackageToolGuiWindow";
+constexpr const wchar_t* kWindowTitle = dingoo::kPackageToolWindowTitle;
+constexpr wchar_t kPackageFilter[] =
+    L"Dingoo packages (*.app;*.cc)\0*.app;*.APP;*.cc;*.CC\0"
+    L"APP files (*.app)\0*.app;*.APP\0"
+    L"CC files (*.cc)\0*.cc;*.CC\0"
+    L"All files (*.*)\0*.*\0";
+constexpr wchar_t kJsonFilter[] =
+    L"Manifest files (*.json)\0*.json\0"
+    L"All files (*.*)\0*.*\0";
 constexpr UINT kProgressMessage = WM_APP + 1;
 constexpr UINT kDoneMessage = WM_APP + 2;
 
@@ -106,6 +117,27 @@ bool blank(const std::wstring& text) {
     return text.find_first_not_of(L" \t\r\n") == std::wstring::npos;
 }
 
+std::filesystem::path suggestedUnpackDirectory(const std::filesystem::path& inputPath) {
+    if (dingoo::packageFormatFromPath(inputPath) == dingoo::PackageFormat::Unknown) {
+        return {};
+    }
+    return inputPath.parent_path() / (inputPath.stem().wstring() + L"-unpacked");
+}
+
+bool setUnpackInput(AppState& state, const std::filesystem::path& inputPath) {
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(inputPath, error)) {
+        return false;
+    }
+    const auto outputPath = suggestedUnpackDirectory(inputPath);
+    if (outputPath.empty()) {
+        return false;
+    }
+    setText(state.unpackInput, inputPath.wstring());
+    setText(state.unpackOutput, outputPath.wstring());
+    return true;
+}
+
 void appendLog(HWND log, const std::wstring& text) {
     const int length = GetWindowTextLengthW(log);
     SendMessageW(log, EM_SETSEL, static_cast<WPARAM>(length), static_cast<LPARAM>(length));
@@ -161,8 +193,8 @@ void createControls(HWND window, AppState& state) {
         DEFAULT_PITCH | FF_DONTCARE,
         L"Segoe UI");
 
-    makeControl(window, state, L"BUTTON", L"Unpack", BS_GROUPBOX, 0, 12, 12, 736, 136, 0);
-    makeControl(window, state, L"STATIC", L"Input .app", 0, 0, 24, 40, 92, 20, 0);
+    makeControl(window, state, L"BUTTON", L"Unpack (drop APP/CC anywhere)", BS_GROUPBOX, 0, 12, 12, 736, 136, 0);
+    makeControl(window, state, L"STATIC", L"Input APP/CC", 0, 0, 24, 40, 92, 20, 0);
     state.unpackInput = makeControl(window, state, L"EDIT", L"", ES_AUTOHSCROLL, WS_EX_CLIENTEDGE, 120, 36, 520, 24, IdUnpackInput);
     state.browseUnpackInput = makeControl(window, state, L"BUTTON", L"Browse", 0, 0, 652, 35, 80, 26, IdBrowseUnpackInput);
     makeControl(window, state, L"STATIC", L"Output folder", 0, 0, 24, 76, 92, 20, 0);
@@ -174,7 +206,7 @@ void createControls(HWND window, AppState& state) {
     makeControl(window, state, L"STATIC", L"Manifest", 0, 0, 24, 186, 92, 20, 0);
     state.packManifest = makeControl(window, state, L"EDIT", L"", ES_AUTOHSCROLL, WS_EX_CLIENTEDGE, 120, 182, 520, 24, IdPackManifest);
     state.browsePackManifest = makeControl(window, state, L"BUTTON", L"Browse", 0, 0, 652, 181, 80, 26, IdBrowsePackManifest);
-    makeControl(window, state, L"STATIC", L"Output .app", 0, 0, 24, 222, 92, 20, 0);
+    makeControl(window, state, L"STATIC", L"Output APP/CC", 0, 0, 24, 222, 92, 20, 0);
     state.packOutput = makeControl(window, state, L"EDIT", L"", ES_AUTOHSCROLL, WS_EX_CLIENTEDGE, 120, 218, 520, 24, IdPackOutput);
     state.browsePackOutput = makeControl(window, state, L"BUTTON", L"Browse", 0, 0, 652, 217, 80, 26, IdBrowsePackOutput);
     state.runPack = makeControl(window, state, L"BUTTON", L"Pack", 0, 0, 652, 254, 80, 28, IdRunPack);
@@ -318,6 +350,9 @@ void startOperation(HWND window, AppState& state, Operation operation) {
     if (operation == Operation::Unpack) {
         input = getText(state.unpackInput);
         output = getText(state.unpackOutput);
+        if (!blank(input) && blank(output) && setUnpackInput(state, std::filesystem::path(input))) {
+            output = getText(state.unpackOutput);
+        }
     } else {
         input = getText(state.packManifest);
         output = getText(state.packOutput);
@@ -346,10 +381,10 @@ void startOperation(HWND window, AppState& state, Operation operation) {
             };
 
             if (operation == Operation::Unpack) {
-                dingoo::unpackApp(std::filesystem::path(input), std::filesystem::path(output), progress);
+                dingoo::unpackPackage(std::filesystem::path(input), std::filesystem::path(output), progress);
                 resultMessage = L"Unpack completed.";
             } else {
-                dingoo::packApp(std::filesystem::path(input), std::filesystem::path(output), progress);
+                dingoo::packPackage(std::filesystem::path(input), std::filesystem::path(output), progress);
                 resultMessage = L"Pack completed.";
             }
         } catch (const std::exception& e) {
@@ -391,12 +426,12 @@ void handleDone(HWND window, AppState& state, const DonePayload& payload) {
         SendMessageW(state.progress, PBM_SETPOS, 1000, 0);
         setText(state.status, payload.message);
         appendLog(state.log, payload.message);
-        MessageBoxW(window, payload.message.c_str(), L"Dingoo App Tool", MB_ICONINFORMATION | MB_OK);
+        MessageBoxW(window, payload.message.c_str(), kWindowTitle, MB_ICONINFORMATION | MB_OK);
     } else {
         const std::wstring message = L"Failed: " + payload.message;
         setText(state.status, message);
         appendLog(state.log, message);
-        MessageBoxW(window, message.c_str(), L"Dingoo App Tool", MB_ICONERROR | MB_OK);
+        MessageBoxW(window, message.c_str(), kWindowTitle, MB_ICONERROR | MB_OK);
     }
     setBusy(state, false);
 }
@@ -405,12 +440,52 @@ AppState* stateFrom(HWND window) {
     return reinterpret_cast<AppState*>(GetWindowLongPtrW(window, GWLP_USERDATA));
 }
 
+void handleDroppedFiles(HWND window, AppState& state, HDROP drop) {
+    if (state.busy) {
+        DragFinish(drop);
+        return;
+    }
+
+    bool accepted = false;
+    const UINT count = DragQueryFileW(drop, 0xffffffffu, nullptr, 0);
+    for (UINT index = 0; index < count && !accepted; ++index) {
+        const UINT length = DragQueryFileW(drop, index, nullptr, 0);
+        std::vector<wchar_t> pathBuffer(static_cast<std::size_t>(length) + 1u, L'\0');
+        if (DragQueryFileW(drop, index, pathBuffer.data(), static_cast<UINT>(pathBuffer.size())) == 0) {
+            continue;
+        }
+
+        const std::filesystem::path inputPath(pathBuffer.data());
+        accepted = setUnpackInput(state, inputPath);
+        if (accepted) {
+            appendLog(state.log, L"Dropped package: " + inputPath.wstring());
+            appendLog(state.log, L"Output folder: " + getText(state.unpackOutput));
+        }
+    }
+    DragFinish(drop);
+
+    if (!accepted) {
+        MessageBoxW(window, L"Drop an .app or .cc file.", kWindowTitle, MB_ICONWARNING | MB_OK);
+    }
+}
+
 LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
     case WM_CREATE: {
         auto* state = new AppState;
         SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
         createControls(window, *state);
+        DragAcceptFiles(window, TRUE);
+        return 0;
+    }
+    case WM_DROPFILES: {
+        HDROP drop = reinterpret_cast<HDROP>(wParam);
+        AppState* state = stateFrom(window);
+        if (!state) {
+            DragFinish(drop);
+            return 0;
+        }
+        handleDroppedFiles(window, *state, drop);
         return 0;
     }
     case WM_COMMAND: {
@@ -419,13 +494,16 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             return 0;
         }
 
-        const wchar_t appFilter[] = L"Dingoo app files (*.app)\0*.app;*.APP\0All files (*.*)\0*.*\0";
-        const wchar_t jsonFilter[] = L"Manifest files (*.json)\0*.json\0All files (*.*)\0*.*\0";
         switch (LOWORD(wParam)) {
+        case IdUnpackInput:
+            if (HIWORD(wParam) == EN_KILLFOCUS) {
+                setUnpackInput(*state, std::filesystem::path(getText(state->unpackInput)));
+            }
+            return 0;
         case IdBrowseUnpackInput: {
-            const auto path = browseOpenFile(window, L"Select .app file", appFilter, getText(state->unpackInput));
+            const auto path = browseOpenFile(window, L"Select APP or CC file", kPackageFilter, getText(state->unpackInput));
             if (!path.empty()) {
-                setText(state->unpackInput, path);
+                setUnpackInput(*state, std::filesystem::path(path));
             }
             return 0;
         }
@@ -440,14 +518,14 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             startOperation(window, *state, Operation::Unpack);
             return 0;
         case IdBrowsePackManifest: {
-            const auto path = browseOpenFile(window, L"Select manifest.json", jsonFilter, getText(state->packManifest));
+            const auto path = browseOpenFile(window, L"Select manifest.json", kJsonFilter, getText(state->packManifest));
             if (!path.empty()) {
                 setText(state->packManifest, path);
             }
             return 0;
         }
         case IdBrowsePackOutput: {
-            const auto path = browseSaveFile(window, L"Select output .app", appFilter, L"app", getText(state->packOutput));
+            const auto path = browseSaveFile(window, L"Select output APP or CC file", kPackageFilter, nullptr, getText(state->packOutput));
             if (!path.empty()) {
                 setText(state->packOutput, path);
             }
@@ -479,7 +557,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     case WM_CLOSE: {
         AppState* state = stateFrom(window);
         if (state && state->busy) {
-            MessageBoxW(window, L"Wait for the current operation to finish.", L"Dingoo App Tool", MB_ICONWARNING | MB_OK);
+            MessageBoxW(window, L"Wait for the current operation to finish.", kWindowTitle, MB_ICONWARNING | MB_OK);
             return 0;
         }
         DestroyWindow(window);
@@ -487,6 +565,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     }
     case WM_DESTROY: {
         AppState* state = stateFrom(window);
+        DragAcceptFiles(window, FALSE);
         if (state) {
             if (state->font) {
                 DeleteObject(state->font);
@@ -532,7 +611,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previousInstance, LPSTR command
     HWND window = CreateWindowExW(
         0,
         kWindowClassName,
-        L"Dingoo App Tool",
+        kWindowTitle,
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
         CW_USEDEFAULT,
         CW_USEDEFAULT,

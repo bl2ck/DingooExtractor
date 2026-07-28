@@ -1,4 +1,4 @@
-#include "app_format.h"
+#include "package_format.h"
 
 #include "file_util.h"
 #include "json_manifest.h"
@@ -157,7 +157,7 @@ bool knownResourceExtension(const std::string& name) {
     return ext == ".war" || ext == ".pcm" || ext == ".dat" || ext == ".txt" || ext == ".log";
 }
 
-void addErptResources(AppImage& image, const std::vector<std::uint8_t>& data) {
+void addErptResources(PackageImage& image, const std::vector<std::uint8_t>& data) {
     // ERPT records have fixed-size names and payload metadata. Observed ERPT
     // payloads are XOR-encoded with 0x40, so export stores decoded bytes.
     if (!image.hasErpt || image.erpt.offset + 4 > data.size()) {
@@ -271,7 +271,7 @@ std::uint32_t packedNextOffset(
     return best;
 }
 
-void addPackedResources(AppImage& image, const std::vector<std::uint8_t>& data) {
+void addPackedResources(PackageImage& image, const std::vector<std::uint8_t>& data) {
     constexpr std::uint32_t maxTables = 8;
     constexpr std::uint32_t recordSize = 36;
     constexpr std::uint32_t nameSize = 32;
@@ -410,7 +410,7 @@ bool probePacked64At(const std::vector<std::uint8_t>& data, std::uint32_t base, 
     return true;
 }
 
-void addPacked64Resources(AppImage& image, const std::vector<std::uint8_t>& data) {
+void addPacked64Resources(PackageImage& image, const std::vector<std::uint8_t>& data) {
     constexpr std::uint32_t recordSize = 0x44;
     constexpr std::uint32_t nameSize = 0x40;
 
@@ -610,6 +610,13 @@ std::string resourceLabel(const ResourceEntry& resource) {
     return resource.exportPath.empty() ? "resource" : resource.exportPath;
 }
 
+std::string lowerAscii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
 std::uint32_t countPatchableResources(const Manifest& manifest) {
     std::uint32_t count = 0;
     for (const auto& resource : manifest.image.resources) {
@@ -724,6 +731,43 @@ std::string resourceKindName(ResourceKind kind) {
     return "unknown";
 }
 
+std::string packageFormatName(PackageFormat format) {
+    switch (format) {
+    case PackageFormat::App:
+        return "app";
+    case PackageFormat::Cc:
+        return "cc";
+    case PackageFormat::Unknown:
+        return "unknown";
+    }
+    throw std::runtime_error("unknown package format");
+}
+
+PackageFormat parsePackageFormat(const std::string& value) {
+    const auto normalized = lowerAscii(value);
+    if (normalized == "app") {
+        return PackageFormat::App;
+    }
+    if (normalized == "cc") {
+        return PackageFormat::Cc;
+    }
+    if (normalized == "unknown") {
+        return PackageFormat::Unknown;
+    }
+    throw std::runtime_error("unknown package format: " + value);
+}
+
+PackageFormat packageFormatFromPath(const std::filesystem::path& path) {
+    const auto extension = lowerAscii(path.extension().generic_u8string());
+    if (extension == ".app") {
+        return PackageFormat::App;
+    }
+    if (extension == ".cc") {
+        return PackageFormat::Cc;
+    }
+    return PackageFormat::Unknown;
+}
+
 ResourceKind parseResourceKind(const std::string& value) {
     if (value == "erpt") {
         return ResourceKind::Erpt;
@@ -737,15 +781,16 @@ ResourceKind parseResourceKind(const std::string& value) {
     throw std::runtime_error("unknown resource kind: " + value);
 }
 
-AppImage parseAppImage(const std::vector<std::uint8_t>& data) {
+PackageImage parsePackageImage(const std::vector<std::uint8_t>& data, PackageFormat format) {
     if (data.size() < kRawdOffset + 32) {
-        throw std::runtime_error("file is too small to be a Dingoo .app");
+        throw std::runtime_error("file is too small to be a Dingoo APP/CC package");
     }
     if (readIdent(data, kCcdlOffset) != "CCDL") {
         throw std::runtime_error("missing CCDL header");
     }
 
-    AppImage image;
+    PackageImage image;
+    image.format = format;
     image.originalBytes = data;
     image.impt = readChunkHeader(data, kImptOffset);
     image.expt = readChunkHeader(data, kExptOffset);
@@ -790,14 +835,14 @@ AppImage parseAppImage(const std::vector<std::uint8_t>& data) {
     return image;
 }
 
-void unpackApp(
-    const std::filesystem::path& appPath,
+void unpackPackage(
+    const std::filesystem::path& packagePath,
     const std::filesystem::path& outputDir,
     const ProgressCallback& progress) {
-    reportProgress(progress, 0, 0, "Reading app file");
-    const auto bytes = readFile(appPath);
-    reportProgress(progress, 0, 0, "Parsing app image");
-    auto image = parseAppImage(bytes);
+    reportProgress(progress, 0, 0, "Reading package file");
+    const auto bytes = readFile(packagePath);
+    reportProgress(progress, 0, 0, "Parsing package image");
+    auto image = parsePackageImage(bytes, packageFormatFromPath(packagePath));
     const std::uint32_t total = 4u + static_cast<std::uint32_t>(image.resources.size()) + (image.hasUnparsedTail ? 1u : 0u);
     ProgressTracker progressTracker(progress, total);
 
@@ -806,8 +851,11 @@ void unpackApp(
     ensureDirectory(outputDir / "resources");
     progressTracker.advance("Created output directories");
 
-    writeFile(outputDir / "original.app.bin", image.originalBytes);
-    progressTracker.advance("Wrote original.app.bin");
+    const std::string originalImageName = image.format == PackageFormat::Cc
+        ? "original.cc.bin"
+        : "original.app.bin";
+    writeFile(outputDir / originalImageName, image.originalBytes);
+    progressTracker.advance("Wrote " + originalImageName);
     writeFile(outputDir / "payload" / "rawd.bin", slice(bytes, image.rawd.offset, image.rawd.size));
     progressTracker.advance("Wrote payload/rawd.bin");
     if (image.hasUnparsedTail) {
@@ -828,11 +876,11 @@ void unpackApp(
                 resource));
     }
 
-    writeTextFile(outputDir / "manifest.json", writeManifest(image, "original.app.bin", "payload/rawd.bin"));
+    writeTextFile(outputDir / "manifest.json", writeManifest(image, originalImageName, "payload/rawd.bin"));
     progressTracker.advance("Wrote manifest.json");
 }
 
-void packApp(
+void packPackage(
     const std::filesystem::path& manifestPath,
     const std::filesystem::path& outputPath,
     const ProgressCallback& progress) {
@@ -868,10 +916,10 @@ void packApp(
     }
 
     writeFile(outputPath, output);
-    progressTracker.advance("Wrote output app");
+    progressTracker.advance("Wrote output package");
 }
 
-std::string describeApp(const AppImage& image) {
+std::string describePackage(const PackageImage& image) {
     std::uint32_t erptCount = 0;
     std::uint32_t packedCount = 0;
     std::uint32_t packed64Count = 0;
@@ -890,7 +938,11 @@ std::string describeApp(const AppImage& image) {
     }
 
     std::ostringstream out;
-    out << "Dingoo .app\n";
+    out << "Dingoo package";
+    if (image.format != PackageFormat::Unknown) {
+        out << " (." << packageFormatName(image.format) << ")";
+    }
+    out << "\n";
     out << "  file_size: " << image.originalBytes.size() << "\n";
     out << "  imports:   " << image.imports.size() << "\n";
     out << "  exports:   " << image.exports.size() << "\n";
