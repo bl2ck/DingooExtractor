@@ -1,4 +1,5 @@
-#include "app_format.h"
+#include "package_format.h"
+#include "package_tool_version.h"
 #include "file_util.h"
 #include "stx_editor.h"
 
@@ -20,14 +21,19 @@ namespace {
 
 void printUsage() {
     std::cout
-        << "Dingoo App Tool\n"
+        << dingoo::kPackageToolDisplayName << "\n"
         << "Usage:\n"
-        << "  dingoo-app-tool info <input.app>\n"
-        << "  dingoo-app-tool unpack <input.app> <output-dir>\n"
-        << "  dingoo-app-tool pack <manifest.json> <output.app>\n"
-        << "  dingoo-app-tool stx-info <input.stx>\n"
-        << "  dingoo-app-tool stx-export <input.stx> <output.tsv>\n"
-        << "  dingoo-app-tool stx-import <input.stx> <input.tsv> <output.stx>\n";
+        << "  dingoo-package-tool --version\n"
+        << "  dingoo-package-tool info <input.app|input.cc>\n"
+        << "  dingoo-package-tool unpack <input.app|input.cc> <output-dir>\n"
+        << "  dingoo-package-tool pack <manifest.json> <output.app|output.cc>\n"
+        << "  dingoo-package-tool stx-info <input.stx>\n"
+        << "  dingoo-package-tool stx-export <input.stx> <output.tsv>\n"
+        << "  dingoo-package-tool stx-import <input.stx> <input.tsv> <output.stx>\n";
+}
+
+void printVersion() {
+    std::cout << dingoo::kPackageToolDisplayName << "\n";
 }
 
 #ifdef _WIN32
@@ -56,6 +62,10 @@ int main(int argc, char** argv) {
         (void)argc;
         (void)argv;
         const auto args = getWideArgs();
+        if (args.size() == 2 && args[1] == L"--version") {
+            printVersion();
+            return 0;
+        }
         if (args.size() < 3) {
             printUsage();
             return 2;
@@ -63,8 +73,11 @@ int main(int argc, char** argv) {
 
         const std::wstring command = args[1];
         if (command == L"info") {
-            const auto image = dingoo::parseAppImage(dingoo::readFile(std::filesystem::path(args[2])));
-            std::cout << dingoo::describeApp(image);
+            const std::filesystem::path inputPath(args[2]);
+            const auto image = dingoo::parsePackageImage(
+                dingoo::readFile(inputPath),
+                dingoo::packageFormatFromPath(inputPath));
+            std::cout << dingoo::describePackage(image);
             return 0;
         }
 
@@ -73,7 +86,7 @@ int main(int argc, char** argv) {
                 printUsage();
                 return 2;
             }
-            dingoo::unpackApp(std::filesystem::path(args[2]), std::filesystem::path(args[3]));
+            dingoo::unpackPackage(std::filesystem::path(args[2]), std::filesystem::path(args[3]));
             std::cout << "unpacked: " << dingoo::pathToUtf8(std::filesystem::path(args[3])) << "\n";
             return 0;
         }
@@ -83,7 +96,7 @@ int main(int argc, char** argv) {
                 printUsage();
                 return 2;
             }
-            dingoo::packApp(std::filesystem::path(args[2]), std::filesystem::path(args[3]));
+            dingoo::packPackage(std::filesystem::path(args[2]), std::filesystem::path(args[3]));
             std::cout << "packed: " << dingoo::pathToUtf8(std::filesystem::path(args[3])) << "\n";
             return 0;
         }
@@ -118,6 +131,10 @@ int main(int argc, char** argv) {
             return 0;
         }
 #else
+        if (argc == 2 && std::string(argv[1]) == "--version") {
+            printVersion();
+            return 0;
+        }
         if (argc < 3) {
             printUsage();
             return 2;
@@ -125,8 +142,11 @@ int main(int argc, char** argv) {
 
         const std::string command = argv[1];
         if (command == "info") {
-            const auto image = dingoo::parseAppImage(dingoo::readFile(argv[2]));
-            std::cout << dingoo::describeApp(image);
+            const std::filesystem::path inputPath(argv[2]);
+            const auto image = dingoo::parsePackageImage(
+                dingoo::readFile(inputPath),
+                dingoo::packageFormatFromPath(inputPath));
+            std::cout << dingoo::describePackage(image);
             return 0;
         }
 
@@ -135,7 +155,7 @@ int main(int argc, char** argv) {
                 printUsage();
                 return 2;
             }
-            dingoo::unpackApp(argv[2], argv[3]);
+            dingoo::unpackPackage(argv[2], argv[3]);
             std::cout << "unpacked: " << argv[3] << "\n";
             return 0;
         }
@@ -145,7 +165,7 @@ int main(int argc, char** argv) {
                 printUsage();
                 return 2;
             }
-            dingoo::packApp(argv[2], argv[3]);
+            dingoo::packPackage(argv[2], argv[3]);
             std::cout << "packed: " << argv[3] << "\n";
             return 0;
         }

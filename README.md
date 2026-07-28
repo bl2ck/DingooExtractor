@@ -1,28 +1,32 @@
-# Dingoo App Tool
+# Dingoo Package Tool 1.0
 
 ## 中文说明
 
-`dingoo-app-tool` 是面向丁果科技 `.app` 文件的保守型解包、回包工具，主要用于检查和编辑
+`dingoo-package-tool` 是面向丁果科技 `.app` 和 `.cc` 文件的保守型解包、回包工具，主要用于检查和编辑
 丁果 A320 与兼容歌美 X760+ 软件中的资源文件。工具的设计目标是尽量保留原始容器字节布局，
 只替换 manifest 中已记录的内容。
 
+当前程序版本为 `1.0`。
+
 工具会构建两个可执行文件：
 
-- `dingoo-app-tool.exe`：命令行工具，覆盖结构检查、解包、回包和 STX 文本导出/导入。
-- `dingoo-app-tool-gui.exe`：Windows 图形界面，覆盖常用的解包和回包流程，并显示进度和日志。
+- `dingoo-package-tool.exe`：命令行工具，覆盖结构检查、解包、回包和 STX 文本导出/导入。
+- `dingoo-package-tool-gui.exe`：Windows 图形界面，覆盖常用的解包和回包流程，并显示进度和日志。
 
 ### 功能范围
 
 命令行支持的命令与 `src\main.cpp` 中的用法一致：
 
-- `info <input.app>`：解析 `.app` 并输出结构摘要，不写入文件。
-- `unpack <input.app> <output-dir>`：导出 manifest、原始镜像副本、RAWD 主程序数据和已识别资源。
-- `pack <manifest.json> <output.app>`：读取解包目录中的 manifest 和导出文件，重新生成 `.app`。
+- `--version`：输出当前程序版本。
+- `info <input.app|input.cc>`：解析 `.app` 或 `.cc` 并输出结构摘要，不写入文件。
+- `unpack <input.app|input.cc> <output-dir>`：导出 manifest、原始镜像副本、RAWD 主程序数据和已识别资源。
+- `pack <manifest.json> <output.app|output.cc>`：读取解包目录中的 manifest 和导出文件，重新生成对应容器。
 - `stx-info <input.stx>`：扫描 `.stx` 文件中已识别的文本条目。
 - `stx-export <input.stx> <output.tsv>`：把已识别 STX 文本导出为 TSV。
 - `stx-import <input.stx> <input.tsv> <output.stx>`：把 TSV 中的替换文本写入新的 `.stx` 文件。
 
-GUI 当前只提供 `unpack` 和 `pack`。STX 文本编辑仍使用命令行。
+GUI 当前只提供 `unpack` 和 `pack`。可以把 `.app` 或 `.cc` 文件直接拖入窗口；选择或拖入文件后，
+输出目录会自动填写为源文件同目录下的 `<文件名>-unpacked`。STX 文本编辑仍使用命令行。
 
 ### 构建
 
@@ -35,8 +39,8 @@ cmake --build build -j 4
 
 Windows 构建产物：
 
-- `build\dingoo-app-tool.exe`
-- `build\dingoo-app-tool-gui.exe`
+- `build\dingoo-package-tool.exe`
+- `build\dingoo-package-tool-gui.exe`
 
 `build_win64.ps1` 会从脚本目录上两级位置寻找 `w64devkit\bin\cmake.exe`。如果工具目录不在带有
 `w64devkit` 的仓库下面，显式传入 DingooPie 根目录：
@@ -45,12 +49,30 @@ Windows 构建产物：
 .\build_win64.ps1 -DingooPieRoot D:\Project\C++\dingoo-pie
 ```
 
+### 源文件格式
+
+- 源码、构建脚本和说明文档统一使用 UTF-8（无 BOM）。
+- 文本文件使用 CRLF 行尾，并保留文件末尾换行。
+- `.editorconfig` 用于编辑器格式提示，`.gitattributes` 用于固定 Git 工作区行尾。
+
+### 源码结构
+
+- `src\package_format.*`：APP/CC 共用容器解析、资源解包和保守回包。
+- `src\json_manifest.*`：解包清单的读写与格式校验。
+- `src\package_gui.cpp`：Windows 图形界面、文件拖放和后台任务调度。
+- `src\stx_editor.*`：STX 文本扫描、导出和导入。
+
+内部代码统一使用 `Package` 表示 APP/CC 共用容器。可执行文件和 manifest 标识统一使用
+`dingoo-package-tool` 名称。
+
 ### 常用流程
 
 ```powershell
-.\build\dingoo-app-tool.exe info D:\Games\Snake.app
-.\build\dingoo-app-tool.exe unpack D:\Games\Snake.app D:\Work\Snake-unpacked
-.\build\dingoo-app-tool.exe pack D:\Work\Snake-unpacked\manifest.json D:\Work\Snake-repacked.app
+.\build\dingoo-package-tool.exe info D:\Games\Snake.app
+.\build\dingoo-package-tool.exe unpack D:\Games\Snake.app D:\Work\Snake-unpacked
+.\build\dingoo-package-tool.exe pack D:\Work\Snake-unpacked\manifest.json D:\Work\Snake-repacked.app
+.\build\dingoo-package-tool.exe unpack D:\Games\天地道.cc D:\Work\天地道-unpacked
+.\build\dingoo-package-tool.exe pack D:\Work\天地道-unpacked\manifest.json D:\Work\天地道-repacked.cc
 ```
 
 未修改资源时，可以用哈希比较确认往返结果：
@@ -66,23 +88,24 @@ $a -eq $b
 - `迪克蛇.app`：746 个 `packed` 资源。
 - `糖果屋.app`：192 个 `packed` 资源。
 - `七夜正式版.app`：3574 个 `packed64` 资源。
+- `天地道.cc`：2208 个 `erpt` 资源。
 
 ### 解包产物
 
 `unpack` 会生成：
 
 - `manifest.json`：解析出的结构、偏移、大小、资源类型、异或键和导出路径。
-- `original.app.bin`：原始 `.app` 的完整字节副本；`pack` 会以它作为基础镜像。
+- `original.app.bin` 或 `original.cc.bin`：原始容器的完整字节副本；`pack` 会以它作为基础镜像。
 - `payload\rawd.bin`：`RAWD` 主程序数据。
 - `resources\...`：已识别资源的解码后副本，通常在这里修改资源。
 - `tail\after_rawd.bin`：仅在 RAWD 后存在未识别附加数据时生成。
 
-不要删除 `manifest.json`、`original.app.bin`、`payload\rawd.bin` 或 manifest 中记录的资源文件。
+不要删除 `manifest.json`、`original.app.bin`/`original.cc.bin`、`payload\rawd.bin` 或 manifest 中记录的资源文件。
 新增文件不会自动加入资源表。
 
 ### 回包规则
 
-`pack` 采用保守策略：先读取 `original.app.bin`，再按 manifest 替换 RAWD、未识别尾部数据和资源内容。
+`pack` 采用保守策略：先读取 manifest 指定的原始容器副本，再替换 RAWD、未识别尾部数据和资源内容。
 
 - `payload\rawd.bin` 必须保持原始字节大小。
 - `tail\after_rawd.bin` 如果存在，也必须保持原始字节大小。
@@ -97,9 +120,9 @@ $a -eq $b
 部分 `.stx` 文件包含界面文字或资源描述。工具可把已识别文本字段导出为 TSV，并导入替换文本：
 
 ```powershell
-.\build\dingoo-app-tool.exe stx-info D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx
-.\build\dingoo-app-tool.exe stx-export D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv
-.\build\dingoo-app-tool.exe stx-import D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv D:\Work\0897-edited.stx
+.\build\dingoo-package-tool.exe stx-info D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx
+.\build\dingoo-package-tool.exe stx-export D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv
+.\build\dingoo-package-tool.exe stx-import D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv D:\Work\0897-edited.stx
 ```
 
 TSV 列：
@@ -117,6 +140,9 @@ id    encoding    offset_hex    byte_length    text    replacement
 导入生成新的 `.stx` 后，把它覆盖到解包目录中的对应资源，再用原始 `manifest.json` 执行 `pack`。
 
 ### 当前格式知识
+
+`.app` 与 `.cc` 共用 CCDL 容器布局，工具按输入文件扩展名记录 `package_type`；`.app` 通常承载 MIPS 程序，
+`.cc` 通常承载 ARM32 程序。资源表仍按容器内容探测，不依赖扩展名猜测。
 
 已知顶层区块：
 
@@ -136,39 +162,44 @@ manifest 会同时记录十进制和十六进制偏移，便于排查格式问�
 
 ### 使用边界
 
-`.app` 文件格式和相关游戏资源归原权利方所有。请只处理你合法取得并有权使用的文件；
+`.app`、`.cc` 文件格式和相关游戏资源归原权利方所有。请只处理你合法取得并有权使用的文件；
 不要把解包后的第三方资源提交到项目仓库。
 
 ## English
 
-`dingoo-app-tool` is a conservative unpack/repack utility for Dingoo Technology
-`.app` files. It is intended for inspecting and editing resources from Dingoo
+`dingoo-package-tool` is a conservative unpack/repack utility for Dingoo Technology
+`.app` and `.cc` files. It is intended for inspecting and editing resources from Dingoo
 A320 and compatible Gemei X760+ software while preserving as much of the
 original container layout as possible.
 
+The current program version is `1.0`.
+
 The build produces two executables:
 
-- `dingoo-app-tool.exe`: command-line tool for inspection, unpacking, repacking,
+- `dingoo-package-tool.exe`: command-line tool for inspection, unpacking, repacking,
   and STX text export/import.
-- `dingoo-app-tool-gui.exe`: Windows GUI for the common unpack and pack
+- `dingoo-package-tool-gui.exe`: Windows GUI for the common unpack and pack
   workflow, with progress and log output.
 
 ### Scope
 
 The command-line interface matches the usage in `src\main.cpp`:
 
-- `info <input.app>`: parse an `.app` file and print a compact summary.
-- `unpack <input.app> <output-dir>`: export the manifest, original image copy,
+- `--version`: print the current program version.
+- `info <input.app|input.cc>`: parse an `.app` or `.cc` file and print a compact summary.
+- `unpack <input.app|input.cc> <output-dir>`: export the manifest, original image copy,
   RAWD payload, and detected resources.
-- `pack <manifest.json> <output.app>`: rebuild an `.app` from the unpacked
+- `pack <manifest.json> <output.app|output.cc>`: rebuild the package from the unpacked
   manifest and exported files.
 - `stx-info <input.stx>`: scan detected text entries in an `.stx` file.
 - `stx-export <input.stx> <output.tsv>`: export detected STX text to TSV.
 - `stx-import <input.stx> <input.tsv> <output.stx>`: apply TSV replacements to
   a new `.stx` file.
 
-The GUI currently covers only `unpack` and `pack`. STX text editing is done
-through the command line.
+The GUI currently covers only `unpack` and `pack`. Drop an `.app` or `.cc` file
+anywhere on the window, or select one with Browse; the output directory is
+automatically set to `<file-name>-unpacked` beside the source file. STX text
+editing is done through the command line.
 
 ### Build
 
@@ -181,8 +212,8 @@ cmake --build build -j 4
 
 Windows outputs:
 
-- `build\dingoo-app-tool.exe`
-- `build\dingoo-app-tool-gui.exe`
+- `build\dingoo-package-tool.exe`
+- `build\dingoo-package-tool-gui.exe`
 
 `build_win64.ps1` looks for `w64devkit\bin\cmake.exe` two directories above the
 script directory. If the tool directory is not under a repository that contains
@@ -192,12 +223,32 @@ script directory. If the tool directory is not under a repository that contains
 .\build_win64.ps1 -DingooPieRoot D:\Project\C++\dingoo-pie
 ```
 
+### Source File Format
+
+- Source files, build scripts, and documentation use UTF-8 without a BOM.
+- Text files use CRLF line endings and retain a final newline.
+- `.editorconfig` provides editor guidance and `.gitattributes` fixes Git
+  working-tree line endings.
+
+### Source Layout
+
+- `src\package_format.*`: shared APP/CC container parsing, resource unpacking,
+  and conservative repacking.
+- `src\json_manifest.*`: unpacked manifest I/O and format validation.
+- `src\package_gui.cpp`: Windows GUI, file drop handling, and background operations.
+- `src\stx_editor.*`: STX text scanning, export, and import.
+
+Internal code uses `Package` for the shared APP/CC container abstraction.
+Executables and the manifest identifier consistently use the `dingoo-package-tool` name.
+
 ### Common Workflow
 
 ```powershell
-.\build\dingoo-app-tool.exe info D:\Games\Snake.app
-.\build\dingoo-app-tool.exe unpack D:\Games\Snake.app D:\Work\Snake-unpacked
-.\build\dingoo-app-tool.exe pack D:\Work\Snake-unpacked\manifest.json D:\Work\Snake-repacked.app
+.\build\dingoo-package-tool.exe info D:\Games\Snake.app
+.\build\dingoo-package-tool.exe unpack D:\Games\Snake.app D:\Work\Snake-unpacked
+.\build\dingoo-package-tool.exe pack D:\Work\Snake-unpacked\manifest.json D:\Work\Snake-repacked.app
+.\build\dingoo-package-tool.exe unpack D:\Games\天地道.cc D:\Work\天地道-unpacked
+.\build\dingoo-package-tool.exe pack D:\Work\天地道-unpacked\manifest.json D:\Work\天地道-repacked.cc
 ```
 
 When resources are not edited, compare hashes to confirm the round trip:
@@ -213,6 +264,7 @@ Current local samples checked with `info`:
 - `迪克蛇.app`: 746 `packed` resources.
 - `糖果屋.app`: 192 `packed` resources.
 - `七夜正式版.app`: 3574 `packed64` resources.
+- `天地道.cc`: 2208 `erpt` resources.
 
 ### Unpacked Files
 
@@ -220,19 +272,19 @@ Current local samples checked with `info`:
 
 - `manifest.json`: parsed structure, offsets, sizes, resource kinds, XOR keys,
   and export paths.
-- `original.app.bin`: byte-for-byte copy of the original `.app`; `pack` uses it
+- `original.app.bin` or `original.cc.bin`: byte-for-byte copy of the original package; `pack` uses it
   as the base image.
 - `payload\rawd.bin`: RAWD program payload.
 - `resources\...`: decoded resource files, usually where edits are made.
 - `tail\after_rawd.bin`: created only when unrecognized data exists after RAWD.
 
-Do not delete `manifest.json`, `original.app.bin`, `payload\rawd.bin`, or any
+Do not delete `manifest.json`, `original.app.bin`/`original.cc.bin`, `payload\rawd.bin`, or any
 resource file recorded in the manifest. Adding files does not add package-table
 entries.
 
 ### Repacking Rules
 
-`pack` is conservative: it reads `original.app.bin`, then replaces RAWD,
+`pack` is conservative: it reads the original package copy named by the manifest, then replaces RAWD,
 unparsed tail data, and resource content according to the manifest.
 
 - `payload\rawd.bin` must keep its original byte size.
@@ -252,9 +304,9 @@ Some `.stx` files contain UI labels or resource descriptions. The tool exports
 detected text fields to TSV and imports replacements:
 
 ```powershell
-.\build\dingoo-app-tool.exe stx-info D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx
-.\build\dingoo-app-tool.exe stx-export D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv
-.\build\dingoo-app-tool.exe stx-import D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv D:\Work\0897-edited.stx
+.\build\dingoo-package-tool.exe stx-info D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx
+.\build\dingoo-package-tool.exe stx-export D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv
+.\build\dingoo-package-tool.exe stx-import D:\Work\7Days-unpacked\resources\common\0897_dj_ken_ab.stx D:\Work\0897.tsv D:\Work\0897-edited.stx
 ```
 
 TSV columns:
@@ -275,6 +327,11 @@ After importing a new `.stx`, replace the matching resource in the unpacked
 directory and run `pack` with the original `manifest.json`.
 
 ### Current Format Knowledge
+
+`.app` and `.cc` share the CCDL container layout. The tool records
+`package_type` from the input extension; `.app` usually carries MIPS code and
+`.cc` usually carries ARM32 code. Resource tables are still detected from the
+container contents rather than guessed from the extension.
 
 Known top-level chunks:
 
@@ -297,6 +354,6 @@ format troubleshooting.
 
 ### Use Boundaries
 
-The `.app` format and related game resources belong to their original rights
+The `.app`/`.cc` formats and related game resources belong to their original rights
 holders. Use only files that you legally obtained and have the right to process;
 do not commit unpacked third-party resources to the project repository.
