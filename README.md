@@ -1,12 +1,10 @@
-# Dingoo Package Tool 1.0
+# Dingoo Package Tool
 
 ## 中文说明
 
 `dingoo-package-tool` 是面向丁果科技 `.app` 和 `.cc` 文件的保守型解包、回包工具，主要用于检查和编辑
-丁果 A320 与兼容歌美 X760+ 软件中的资源文件。工具的设计目标是尽量保留原始容器字节布局，
+丁果 A320、歌美 X760+ 和歌美 A330 游戏中的资源文件。工具的设计目标是尽量保留原始容器字节布局，
 只替换 manifest 中已记录的内容。
-
-当前程序版本为 `1.0`。
 
 工具会构建两个可执行文件：
 
@@ -169,10 +167,8 @@ manifest 会同时记录十进制和十六进制偏移，便于排查格式问�
 
 `dingoo-package-tool` is a conservative unpack/repack utility for Dingoo Technology
 `.app` and `.cc` files. It is intended for inspecting and editing resources from Dingoo
-A320 and compatible Gemei X760+ software while preserving as much of the
+A320, Gemei X760+, and Gemei A330 games while preserving as much of the
 original container layout as possible.
-
-The current program version is `1.0`.
 
 The build produces two executables:
 
