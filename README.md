@@ -69,8 +69,8 @@ Windows 构建产物：
 .\build\dingoo-package-tool.exe info D:\Games\Snake.app
 .\build\dingoo-package-tool.exe unpack D:\Games\Snake.app D:\Work\Snake-unpacked
 .\build\dingoo-package-tool.exe pack D:\Work\Snake-unpacked\manifest.json D:\Work\Snake-repacked.app
-.\build\dingoo-package-tool.exe unpack D:\Games\天地道.cc D:\Work\天地道-unpacked
-.\build\dingoo-package-tool.exe pack D:\Work\天地道-unpacked\manifest.json D:\Work\天地道-repacked.cc
+.\build\dingoo-package-tool.exe unpack D:\Games\天地道正式版.cc D:\Work\天地道正式版-unpacked
+.\build\dingoo-package-tool.exe pack D:\Work\天地道正式版-unpacked\manifest.json D:\Work\天地道正式版-repacked.cc
 ```
 
 未修改资源时，可以用哈希比较确认往返结果：
@@ -86,7 +86,7 @@ $a -eq $b
 - `迪克蛇.app`：746 个 `packed` 资源。
 - `糖果屋.app`：192 个 `packed` 资源。
 - `七夜正式版.app`：3574 个 `packed64` 资源。
-- `天地道.cc`：2208 个 `erpt` 资源。
+- `天地道正式版.cc`：2208 个 `erpt` 资源。
 
 ### 解包产物
 
@@ -243,8 +243,8 @@ Executables and the manifest identifier consistently use the `dingoo-package-too
 .\build\dingoo-package-tool.exe info D:\Games\Snake.app
 .\build\dingoo-package-tool.exe unpack D:\Games\Snake.app D:\Work\Snake-unpacked
 .\build\dingoo-package-tool.exe pack D:\Work\Snake-unpacked\manifest.json D:\Work\Snake-repacked.app
-.\build\dingoo-package-tool.exe unpack D:\Games\天地道.cc D:\Work\天地道-unpacked
-.\build\dingoo-package-tool.exe pack D:\Work\天地道-unpacked\manifest.json D:\Work\天地道-repacked.cc
+.\build\dingoo-package-tool.exe unpack D:\Games\天地道正式版.cc D:\Work\天地道正式版-unpacked
+.\build\dingoo-package-tool.exe pack D:\Work\天地道正式版-unpacked\manifest.json D:\Work\天地道正式版-repacked.cc
 ```
 
 When resources are not edited, compare hashes to confirm the round trip:
@@ -260,7 +260,7 @@ Current local samples checked with `info`:
 - `迪克蛇.app`: 746 `packed` resources.
 - `糖果屋.app`: 192 `packed` resources.
 - `七夜正式版.app`: 3574 `packed64` resources.
-- `天地道.cc`: 2208 `erpt` resources.
+- `天地道正式版.cc`: 2208 `erpt` resources.
 
 ### Unpacked Files
 
