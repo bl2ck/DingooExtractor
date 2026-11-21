@@ -11,6 +11,17 @@
 - `dingoo-package-tool.exe`：命令行工具，覆盖结构检查、解包、回包和 STX 文本导出/导入。
 - `dingoo-package-tool-gui.exe`：Windows 图形界面，覆盖常用的解包和回包流程，并显示进度和日志。
 
+### 游戏封面
+
+| | | |
+| :---: | :---: | :---: |
+| <img src="docs/covers/sevendays.png" alt="七夜：标题画面" width="240"><br>**七夜**<br>[APP](app/七夜正式版.app) · [CC](cc/七夜正式版.cc) | <img src="docs/covers/tiandidao.png" alt="天地道：标题画面" width="240"><br>**天地道**<br>[正式版 CC](cc/天地道正式版.cc) · [试玩版 APP](app/天地道试玩版.app) · [预览版 APP](app/天地道预览版.app) | <img src="docs/covers/pal.png" alt="仙剑奇侠传：标题画面" width="240"><br>**仙剑奇侠传**<br>[CC](cc/仙剑奇侠传.cc) |
+| <img src="docs/covers/xingtian.png" alt="战神刑天：标题画面" width="240"><br>**战神刑天**<br>[APP](app/战神刑天.app) | <img src="docs/covers/zhao-yun.png" alt="赵云传：标题画面" width="240"><br>**赵云传**<br>[APP](app/赵云传.app) | <img src="docs/covers/alibaba.png" alt="阿里巴巴：标题画面" width="240"><br>**阿里巴巴**<br>[APP](app/阿里巴巴.app) · [联机版 CC](cc/阿里巴巴联机版.cc) |
+| <img src="docs/covers/drift.png" alt="极限漂移：标题画面" width="240"><br>**极限漂移**<br>[APP](app/极限漂移.app) | <img src="docs/covers/air-combat.png" alt="霸王战机：标题画面" width="240"><br>**霸王战机**<br>[APP](app/霸王战机.app) | <img src="docs/covers/ruby.png" alt="卢比卢比：标题画面" width="240"><br>**卢比卢比**<br>[APP](app/卢比卢比.app) · [CC](cc/卢比卢比.cc) |
+| <img src="docs/covers/candy-house.png" alt="糖果屋：标题画面" width="240"><br>**糖果屋**<br>[APP](app/糖果屋.app) | <img src="docs/covers/tile-match.png" alt="连连看：标题画面" width="240"><br>**连连看**<br>[APP](app/连连看.app) | <img src="docs/covers/doudizhu.png" alt="斗地主：标题画面" width="240"><br>**斗地主**<br>[APP](app/斗地主.app) · [联机版 CC](cc/斗地主联机版.cc) |
+| <img src="docs/covers/snake.png" alt="迪克蛇：标题画面" width="240"><br>**迪克蛇**<br>[APP](app/迪克蛇.app) | <img src="docs/covers/sudoku.png" alt="数独：标题画面" width="240"><br>**数独**<br>[APP](app/数独.app) | <img src="docs/covers/minesweeper.png" alt="扫雷：游戏画面" width="240"><br>**扫雷**<br>[CC](cc/扫雷.cc) |
+| <img src="docs/covers/tetris.png" alt="俄罗斯方块：标题画面" width="240"><br>**俄罗斯方块**<br>[APP](app/俄罗斯方块.app) | <img src="docs/covers/breakout.png" alt="打砖块：标题画面" width="240"><br>**打砖块**<br>[APP](app/打砖块.app) | <img src="docs/covers/bubble.png" alt="泡泡龙：标题画面" width="240"><br>**泡泡龙**<br>[APP](app/泡泡龙.app) |
+
 ### 功能范围
 
 命令行支持的命令与 `src\main.cpp` 中的用法一致：
@@ -176,6 +187,8 @@ The build produces two executables:
   and STX text export/import.
 - `dingoo-package-tool-gui.exe`: Windows GUI for the common unpack and pack
   workflow, with progress and log output.
+
+[Game cover gallery](#游戏封面)
 
 ### Scope
 
